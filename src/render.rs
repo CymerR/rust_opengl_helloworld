@@ -1,7 +1,7 @@
 pub mod render {
     use gl::types::*;
-    use nalgebra_glm::{RealNumber, Mat4};
-    use std::ffi::{CStr, CString};
+    use nalgebra_glm::{Mat4, RealNumber};
+    use std::ffi::{CString};
     use std::mem::*;
 
     pub struct Program {
@@ -42,7 +42,7 @@ pub mod render {
                 };
             }
         }
-        pub fn uniform_matrix(&self, name: CString, matrix: &Mat4) {
+        pub fn uniform_matrix(&self, name: &CString, matrix: &Mat4) {
             unsafe {
                 self.gl_use();
                 let loc = gl::GetUniformLocation(self.pid, name.as_ptr());
@@ -80,12 +80,13 @@ pub mod render {
                 );
             }
         }
-        pub fn data<T>(&self, data: &[T])
+        pub fn data<T>(self, data: &[T]) -> Self
         where
             T: RealNumber,
         {
             self.bind();
             self.buffer_data(data);
+            self
         }
     }
 
@@ -122,11 +123,27 @@ pub mod render {
         z: f32,
     }
 
+    pub trait ToVec {
+        fn to_vec(&self) -> Vec<f32>;
+    }
+
+    impl ToVec for Position3f {
+        fn to_vec(&self) -> Vec<f32> {
+            vec![self.x, self.y, self.z]
+        }
+    }
+
     pub struct Color(f32, f32, f32);
 
+    impl ToVec for Color {
+        fn to_vec(&self) -> Vec<f32> {
+            vec![self.0, self.1, self.2]
+        }
+    }
+
     pub struct Vertex {
-        pos: Position3f,
-        color: Color,
+        pub pos: Position3f,
+        pub color: Color,
     }
     impl Vertex {
         pub fn new(position: &[f32; 3], color_: &[f32; 3]) -> Self {
