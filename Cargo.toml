@@ -1,0 +1,12 @@
+[package]
+name = "glfw_gl"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+gl = "0.14.0"
+glfw = "0.52.0"
+nalgebra = "0.32.2"
+nalgebra-glm = "0.18.0"
