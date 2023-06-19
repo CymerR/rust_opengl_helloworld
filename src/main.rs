@@ -3,6 +3,7 @@ use std::ffi::CString;
 
 use glfw::{Action, Context, Key, WindowEvent};
 use glm::Mat4;
+use nalgebra::Perspective3;
 use render::render::{draw, DrawMode, Program, ToVec, Vertex, VAO, VBO};
 
 extern crate gl;
@@ -22,9 +23,9 @@ fn main() {
     gl::load_with(|s| window.get_proc_address(s));
 
     let vertices = vec![
-        Vertex::new(&[0.0, 0.5, 0.0], &[1.0, 0.0, 0.0]),
-        Vertex::new(&[0.5, -0.2, 0.0], &[0.0, 1.0, 0.0]),
-        Vertex::new(&[-0.5, -0.2, 0.0], &[1.0, 0.0, 1.0]),
+        Vertex::new(&[0.0, 0.5, 0.0], &[1.0, 0.8, 0.0]),
+        Vertex::new(&[0.5, -0.5, 0.0], &[0.0, 1.0, 0.5]),
+        Vertex::new(&[-0.5, -0.5, 0.0], &[0.5, 0.0, 1.0]),
     ];
 
     let VSST = "
@@ -35,11 +36,12 @@ fn main() {
 
 
             uniform mat4 projection;
+            uniform mat4 transform;
 
             out vec4 fg_col;
 
             void main() {
-                gl_Position = projection * vec4(data, 1.0f);
+                gl_Position = transform * vec4(data, 1.0f);
                 fg_col = vec4(col, 1.0);
             }
         ";
@@ -78,23 +80,37 @@ fn main() {
 
     let program = Program::new(v_source, f_source);
 
-    let uni_name = CString::new("projection").unwrap();
-    let mut matrix = Mat4::identity();
-    program.uniform_matrix(&uni_name, &matrix);
+    let transform_name = CString::new("transform").unwrap();
+    let mut tranform = Mat4::identity();
+    program.uniform_matrix(&transform_name, &tranform);
+
+    let proj_name = CString::new("projection").unwrap();
+    
+    let proj = 
+    Mat4::new_perspective(16.0/9.0, glm::half_pi(), 1.0, 1000.0);
+    program.uniform_matrix(&proj_name, &proj);
+    
+
     let mut deg = 45;
 
     while !window.should_close() {
         glfw_instance.poll_events();
         for (_, event) in glfw::flush_messages(&events) {
             match event {
-                WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
+                WindowEvent::Key(Key::Escape, _, Action::Press , _) => {
                     window.set_should_close(true);
                 }
-                WindowEvent::Key(Key::Left, _, Action::Press, _) => {
-                    deg = 45;
+                WindowEvent::Key(Key::Up, _, Action::Press | Action::Release, _) => {
+                    tranform = glm::rotate_x(&tranform, (deg as f32).to_radians()/10.0)
                 }
-                WindowEvent::Key(Key::Right, _, Action::Press, _) => {
-                    deg = -45;
+                WindowEvent::Key(Key::Down, _, Action::Press | Action::Release, _) => {
+                    tranform = glm::rotate_x(&tranform, (-deg as f32).to_radians()/10.0)
+                }
+                WindowEvent::Key(Key::Left, _, Action::Press | Action::Repeat, _) => {
+                    tranform = glm::rotate_z(&tranform, (deg as f32).to_radians()/1.0);
+                }
+                WindowEvent::Key(Key::Right, _, Action::Press | Action::Repeat, _) => {
+                    tranform = glm::rotate_z(&tranform, (-deg as f32).to_radians()/1.0);
                 }
                 _ => {}
             }
@@ -108,8 +124,8 @@ fn main() {
         program.gl_use();
         vao.bind();
         draw(DrawMode::Triangles, 0, 3);
-        matrix = glm::rotate_z(&matrix, (deg as f32).to_radians() / 100.0);
-        program.uniform_matrix(&uni_name, &matrix);
+        //matrix = glm::rotate_z(&matrix, (deg as f32).to_radians() / 100.0);
+        program.uniform_matrix(&transform_name, &tranform);
     }
 
     /*
