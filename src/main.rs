@@ -5,8 +5,8 @@ use glfw::{Context, WindowEvent};
 use glm::Mat4;
 
 extern crate gl;
-extern crate nalgebra_glm as glm;
 extern crate glfw;
+extern crate nalgebra_glm as glm;
 
 mod render;
 
@@ -97,16 +97,15 @@ fn main() {
         gl::AttachShader(program, vs);
         gl::AttachShader(program, fs);
         gl::LinkProgram(program);
-        
+
         gl::UseProgram(program);
-        
+
         let name = CString::new("projection").expect("msg");
         let loc = gl::GetUniformLocation(program, name.as_ptr());
-        
 
-        let mut matrix = Mat4::identity();;
-        
-       // matrix = glm::rotate_z(&matrix, glm::half_pi());
+        let mut matrix = Mat4::identity();
+
+        // matrix = glm::rotate_z(&matrix, glm::half_pi());
 
         gl::UniformMatrix4fv(loc, 1, gl::FALSE, matrix.as_ptr());
 
@@ -132,16 +131,12 @@ fn main() {
             gl::BindVertexArray(vao);
             gl::DrawArrays(gl::TRIANGLES, 0, 3);
 
-
-            matrix = glm::rotate_z(&matrix,
-                    (deg as f32).to_radians() / 100.0);
+            matrix = glm::rotate_z(&matrix, (deg as f32).to_radians() / 100.0);
             gl::UseProgram(program);
             gl::UniformMatrix4fv(loc, 1, gl::FALSE, matrix.as_ptr());
 
-
-            deg = (deg+1) % 360;
+            deg = (deg + 1) % 360;
             window.swap_buffers();
         }
     }
 }
-
