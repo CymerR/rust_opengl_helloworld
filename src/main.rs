@@ -1,9 +1,8 @@
 use std::ffi::CString;
 
-
 use glfw::{Action, Context, Key, WindowEvent};
-use glm::Mat4;
-use nalgebra::Perspective3;
+use glm::{Mat4, Vec4, Vec3};
+use nalgebra::{Perspective3, Vector4, Translation4};
 use render::render::{draw, DrawMode, Program, ToVec, Vertex, VAO, VBO};
 
 extern crate gl;
@@ -16,7 +15,7 @@ fn main() {
     let mut glfw_instance = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
     glfw_instance.window_hint(glfw::WindowHint::ContextVersion(4, 6));
     let (mut window, events) = glfw_instance
-        .create_window(500, 500, "title", glfw::WindowMode::Windowed)
+        .create_window(16*50, 9*50, "title", glfw::WindowMode::Windowed)
         .unwrap();
     window.set_all_polling(true);
     window.make_current();
@@ -41,7 +40,7 @@ fn main() {
             out vec4 fg_col;
 
             void main() {
-                gl_Position = transform * vec4(data, 1.0f);
+                gl_Position = projection * transform * vec4(data, 1.0f);
                 fg_col = vec4(col, 1.0);
             }
         ";
@@ -85,13 +84,18 @@ fn main() {
     program.uniform_matrix(&transform_name, &tranform);
 
     let proj_name = CString::new("projection").unwrap();
-    
-    let proj = 
-    Mat4::new_perspective(16.0/9.0, glm::half_pi(), 1.0, 1000.0);
-    program.uniform_matrix(&proj_name, &proj);
-    
 
-    let mut deg = 45;
+    let proj = glm::perspective(16.0/9.0,
+         (60.0_f32).to_radians(),0.0001, 100.0);
+    println!("{}", proj);
+    program.uniform_matrix(&proj_name, &proj);
+
+    let mut deg = 30;
+    let A =
+    Vec3::new(0.0, 0.0, 0.01);
+    let B = Vec3::new(0.0,0.0,-0.01);
+    
+    tranform.append_translation_mut(&Vec3::new(0.0, 0.0, -1.0));
 
     while !window.should_close() {
         glfw_instance.poll_events();
@@ -100,17 +104,25 @@ fn main() {
                 WindowEvent::Key(Key::Escape, _, Action::Press , _) => {
                     window.set_should_close(true);
                 }
-                WindowEvent::Key(Key::Up, _, Action::Press | Action::Release, _) => {
-                    tranform = glm::rotate_x(&tranform, (deg as f32).to_radians()/10.0)
+                WindowEvent::Key(Key::Up, _, Action::Press | Action::Repeat, _) => {
+                    tranform.append_translation_mut(&A);
+                    println!("{tranform}")
                 }
-                WindowEvent::Key(Key::Down, _, Action::Press | Action::Release, _) => {
-                    tranform = glm::rotate_x(&tranform, (-deg as f32).to_radians()/10.0)
+                WindowEvent::Key(Key::Down, _, Action::Press | Action::Repeat, _) => {
+                    tranform = glm::translate(&tranform, &B);
+                    println!("{tranform}")
                 }
                 WindowEvent::Key(Key::Left, _, Action::Press | Action::Repeat, _) => {
-                    tranform = glm::rotate_z(&tranform, (deg as f32).to_radians()/1.0);
+                    tranform = glm::rotate_y(&tranform, (deg as f32).to_radians() / 1.0);
                 }
                 WindowEvent::Key(Key::Right, _, Action::Press | Action::Repeat, _) => {
-                    tranform = glm::rotate_z(&tranform, (-deg as f32).to_radians()/1.0);
+                    tranform = glm::rotate_y(&tranform, (-deg as f32).to_radians() / 1.0);
+                }
+                WindowEvent::Key(Key::K, _, Action::Press | Action::Repeat, _) => {
+                    tranform = glm::rotate_z(&tranform, (deg as f32).to_radians() / 1.0);
+                }
+                WindowEvent::Key(Key::L, _, Action::Press | Action::Repeat, _) => {
+                    tranform = glm::rotate_z(&tranform, (-deg as f32).to_radians() / 1.0);
                 }
                 _ => {}
             }
