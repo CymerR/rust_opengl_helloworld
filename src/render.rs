@@ -1,7 +1,7 @@
 pub mod render {
     use gl::types::*;
-    use nalgebra_glm::{Mat4, RealNumber};
-    use std::ffi::{CString};
+    use nalgebra_glm::{Mat4, RealNumber, Vec2};
+    use std::ffi::CString;
     use std::mem::*;
 
     pub struct Program {
@@ -49,6 +49,23 @@ pub mod render {
                 gl::UniformMatrix4fv(loc, 1, gl::FALSE, matrix.as_ptr());
             }
         }
+
+
+        pub fn uniform_vec2(&self, name: &CString, vvec: &Vec2) {
+            unsafe {
+                self.gl_use();
+                let loc = gl::GetUniformLocation(self.pid, name.as_ptr());
+                gl::Uniform2fv(loc, 1, vvec.as_ptr());
+            }
+        }
+
+        pub fn uniform_float(&self, name: &CString, val: f32) {
+            unsafe {
+                self.gl_use();
+                let loc = gl::GetUniformLocation(self.pid, name.as_ptr());
+                gl::Uniform1fv(loc, 1, &val);
+            }
+        }
     }
 
     pub struct VBO {
@@ -91,7 +108,7 @@ pub mod render {
     }
 
     pub struct VAO {
-        vao: u32,
+        pub vao: u32,
     }
 
     impl VAO {

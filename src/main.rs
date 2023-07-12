@@ -1,9 +1,11 @@
-use std::ffi::CString;
+use std::{ffi::{CString, CStr}, time::Duration, mem::size_of_val, ptr};
 
+use gl::types::GLsizeiptr;
 use glfw::{Action, Context, Key, WindowEvent};
-use glm::{Mat4, Vec4, Vec3};
-use nalgebra::{Perspective3, Vector4, Translation4};
-use render::render::{draw, DrawMode, Program, ToVec, Vertex, VAO, VBO};
+use std::fs;
+use glm::{Mat4, Vec3, Vec2};
+
+use render::render::{Program, ToVec, Vertex, VAO, VBO, draw, DrawMode};
 
 extern crate gl;
 extern crate glfw;
@@ -11,133 +13,99 @@ extern crate nalgebra_glm as glm;
 
 mod render;
 
+
+fn read_shader(name: &str) -> CString {
+    let ad = fs::read_to_string(name).expect("Cannot read a file");
+    CString::new(ad).unwrap()
+}   
+
+
 fn main() {
     let mut glfw_instance = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
     glfw_instance.window_hint(glfw::WindowHint::ContextVersion(4, 6));
     let (mut window, events) = glfw_instance
-        .create_window(16*50, 9*50, "title", glfw::WindowMode::Windowed)
+        .create_window(800, 600, "title", glfw::WindowMode::Windowed)
         .unwrap();
     window.set_all_polling(true);
     window.make_current();
     gl::load_with(|s| window.get_proc_address(s));
 
-    let vertices = vec![
-        Vertex::new(&[0.0, 0.5, 0.0], &[1.0, 0.8, 0.0]),
-        Vertex::new(&[0.5, -0.5, 0.0], &[0.0, 1.0, 0.5]),
-        Vertex::new(&[-0.5, -0.5, 0.0], &[0.5, 0.0, 1.0]),
+
+    let vertices:Vec<f32> = vec![
+        -1.0, 1.0, 0.0,
+        -1.0, -1.0, 0.0,
+        1.0, 1.0, 0.0,
+        -1.0, -1.0, 0.0,
+        1.0, 1.0, 0.0,
+        1.0, -1.0, 0.0,
     ];
 
-    let VSST = "
-            #version 400
-
-            layout (location = 0) in vec3 data;
-            layout (location = 1) in vec3 col;
-
-
-            uniform mat4 projection;
-            uniform mat4 transform;
-
-            out vec4 fg_col;
-
-            void main() {
-                gl_Position = projection * transform * vec4(data, 1.0f);
-                fg_col = vec4(col, 1.0);
-            }
-        ";
-    let FSST = "
-            #version 400
-            in vec4 fg_col;
-            out vec4 colour;
-
-            void main() {
-                colour = fg_col;
-            }
-        ";
-
-    let v_source = CString::new(VSST).unwrap();
-    let f_source = CString::new(FSST).unwrap();
-
-    let posisitions: Vec<f32> = vertices
-        .iter()
-        .map(|ver| &ver.pos)
-        .map(|pos| pos.to_vec())
-        .flatten()
-        .collect();
-
-    let colors: Vec<f32> = vertices
-        .iter()
-        .map(|ver| &ver.color)
-        .map(|pos| pos.to_vec())
-        .flatten()
-        .collect();
-    let pos_vbo = VBO::new().data(&posisitions);
-    let col_vbo = VBO::new().data(&colors);
+    let vbo = VBO::new()
+    .data(&vertices);
 
     let vao = VAO::new();
-    vao.buffer(0, pos_vbo);
-    vao.buffer(1, col_vbo);
+    vao.buffer(0, vbo);
+
+    let v_source = read_shader("vertex.vert");
+    let f_source = read_shader("fragment.frag");
+
+
+    //println!("{:?}", &v_source);
 
     let program = Program::new(v_source, f_source);
 
-    let transform_name = CString::new("transform").unwrap();
-    let mut tranform = Mat4::identity();
-    program.uniform_matrix(&transform_name, &tranform);
+    let resolution =
+     Vec2::new((800) as f32, (600) as f32);
 
-    let proj_name = CString::new("projection").unwrap();
+    let vv_name = CString::new("res").unwrap();
+    program.uniform_vec2(&vv_name, &resolution);
 
-    let proj = glm::perspective(16.0/9.0,
-         (60.0_f32).to_radians(),0.0001, 100.0);
-    println!("{}", proj);
-    program.uniform_matrix(&proj_name, &proj);
-
-    let mut deg = 30;
-    let A =
-    Vec3::new(0.0, 0.0, 0.01);
-    let B = Vec3::new(0.0,0.0,-0.01);
-    
-    tranform.append_translation_mut(&Vec3::new(0.0, 0.0, -1.0));
-
+    let mut tval  = 0.1f32;
+    let t_name = CString::new("tval").unwrap(); 
+    program.uniform_float(&t_name, tval);
     while !window.should_close() {
         glfw_instance.poll_events();
         for (_, event) in glfw::flush_messages(&events) {
             match event {
-                WindowEvent::Key(Key::Escape, _, Action::Press , _) => {
+                WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
                     window.set_should_close(true);
                 }
-                WindowEvent::Key(Key::Up, _, Action::Press | Action::Repeat, _) => {
-                    tranform.append_translation_mut(&A);
-                    println!("{tranform}")
-                }
-                WindowEvent::Key(Key::Down, _, Action::Press | Action::Repeat, _) => {
-                    tranform = glm::translate(&tranform, &B);
-                    println!("{tranform}")
-                }
-                WindowEvent::Key(Key::Left, _, Action::Press | Action::Repeat, _) => {
-                    tranform = glm::rotate_y(&tranform, (deg as f32).to_radians() / 1.0);
-                }
-                WindowEvent::Key(Key::Right, _, Action::Press | Action::Repeat, _) => {
-                    tranform = glm::rotate_y(&tranform, (-deg as f32).to_radians() / 1.0);
-                }
-                WindowEvent::Key(Key::K, _, Action::Press | Action::Repeat, _) => {
-                    tranform = glm::rotate_z(&tranform, (deg as f32).to_radians() / 1.0);
-                }
-                WindowEvent::Key(Key::L, _, Action::Press | Action::Repeat, _) => {
-                    tranform = glm::rotate_z(&tranform, (-deg as f32).to_radians() / 1.0);
+                WindowEvent::Key(key, _, Action::Press | Action::Release,_) => {
+                    if key == Key::Left {
+                        tval += 0.1;
+                    } else if key == Key::Right {
+                        tval -= 0.1;
+                    }
+                    if tval >= 1.0 {
+                        tval = 1.0;
+                    }
+                    if tval <= 0.0 {
+                        tval = 0.0;
+                    }
                 }
                 _ => {}
             }
         }
         window.swap_buffers();
-
+        
         unsafe {
-            gl::ClearColor(0.1, 0.1, 0.1, 0.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
+            gl::ClearColor(0.0, 0.0, 0.0, 0.0);
+            //gl::Clear(gl::DEPTH_BUFFER_BIT);
+            gl::Clear(gl::COLOR_BUFFER_BIT);
+            
         }
+        
         program.gl_use();
         vao.bind();
-        draw(DrawMode::Triangles, 0, 3);
-        //matrix = glm::rotate_z(&matrix, (deg as f32).to_radians() / 100.0);
-        program.uniform_matrix(&transform_name, &tranform);
+        draw(DrawMode::Triangles, 0, 6);
+        
+        //program.uniform_float(&t_name, tval);
+
+        //program.uniform_matrix(&transform_name, &tranform);
+        //program.uniform_matrix(&view_name, &view);
+
+        std::thread::sleep(Duration::from_millis(16));
+
     }
 
     /*
