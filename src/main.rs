@@ -23,6 +23,7 @@ fn read_shader(name: &str) -> CString {
 fn main() {
     let mut glfw_instance = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
     glfw_instance.window_hint(glfw::WindowHint::ContextVersion(4, 6));
+    glfw_instance.window_hint(glfw::WindowHint::Samples(Some(4)));
     let (mut window, events) = glfw_instance
         .create_window(800, 600, "title", glfw::WindowMode::Windowed)
         .unwrap();
@@ -30,7 +31,9 @@ fn main() {
     window.make_current();
     gl::load_with(|s| window.get_proc_address(s));
 
-
+    unsafe {
+       
+    }
     let vertices:Vec<f32> = vec![
         -1.0, 1.0, 0.0,
         -1.0, -1.0, 0.0,
@@ -61,8 +64,15 @@ fn main() {
     program.uniform_vec2(&vv_name, &resolution);
 
     let mut tval  = 0.1f32;
-    let t_name = CString::new("tval").unwrap(); 
+    let t_name = CString::new("t").unwrap(); 
     program.uniform_float(&t_name, tval);
+
+    let mut pow_value = 1.0f32;
+    let st_name = CString::new("step").unwrap();
+    program.uniform_float(&st_name, pow_value);
+
+    let mut iter = 0;
+
     while !window.should_close() {
         glfw_instance.poll_events();
         for (_, event) in glfw::flush_messages(&events) {
@@ -92,14 +102,24 @@ fn main() {
             gl::ClearColor(0.0, 0.0, 0.0, 0.0);
             //gl::Clear(gl::DEPTH_BUFFER_BIT);
             gl::Clear(gl::COLOR_BUFFER_BIT);
-            
+            gl::Enable(gl::MULTISAMPLE);
         }
         
         program.gl_use();
         vao.bind();
         draw(DrawMode::Triangles, 0, 6);
         
-        //program.uniform_float(&t_name, tval);
+
+        tval += 0.01f32;
+        if iter >= 10 {
+            iter = 0;
+            //pow_value += 0.1;
+        }
+
+        iter += 1;
+
+        program.uniform_float(&t_name, tval);
+        program.uniform_float(&st_name, pow_value);
 
         //program.uniform_matrix(&transform_name, &tranform);
         //program.uniform_matrix(&view_name, &view);

@@ -5,11 +5,14 @@ out vec4 fragColor;
 //in vec3 col;
 
 uniform vec2 res;
+uniform float t;
+uniform float step; 
 
-const float MAX_ITER  = 128.0;
+const float MAX_ITER  = 512.0;
 
 float mandelbrot(vec2 uv) {
     vec2 c = 5.0 * uv - vec2(0.7, 0.0);
+    c = c / pow(t, 4.0) + vec2(-1.5, 0.0);
     vec2 z = vec2(0.0);
     float iter = 0.0;
     for (float i = 0; i < MAX_ITER; i++) {
